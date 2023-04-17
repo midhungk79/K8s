@@ -52,3 +52,329 @@ subjects:
 - kind: ServiceAccount
   name: my-serviceaccount
   namespace: default
+  
+  
+  
+Deploy a sample application with 3 replicas and label those with the selector flag as frontend. Enable the kubernetes metrics server on the kubernetes cluster.
+With the help of "kubernetes top" command list the pod resource usage. Sort the pods with the cpu and memory. Also list the node resource usage with top command
+  
+  ubuntu@ip-172-31-10-92:~$ vi frontend-deployment.yaml
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f frontend-deployment.yaml
+deployment.apps/frontend created
+ubuntu@ip-172-31-10-92:~$ kubectl get deployment frontend
+NAME       READY   UP-TO-DATE   AVAILABLE   AGE
+frontend   3/3     3            3           8s
+ubuntu@ip-172-31-10-92:~$ kubectl get pods -l app=frontend
+NAME                        READY   STATUS    RESTARTS   AGE
+frontend-5b4864c967-5pnc6   1/1     Running   0          19s
+frontend-5b4864c967-d2b4c   1/1     Running   0          19s
+frontend-5b4864c967-hjq6v   1/1     Running   0          19s
+ubuntu@ip-172-31-10-92:~$ kubectl get pods 
+NAME                        READY   STATUS    RESTARTS   AGE
+frontend-5b4864c967-5pnc6   1/1     Running   0          29s
+frontend-5b4864c967-d2b4c   1/1     Running   0          29s
+frontend-5b4864c967-hjq6v   1/1     Running   0          29s
+ubuntu@ip-172-31-10-92:~$ kubectl get pods -l app=frontend
+NAME                        READY   STATUS    RESTARTS   AGE
+frontend-5b4864c967-5pnc6   1/1     Running   0          52s
+frontend-5b4864c967-d2b4c   1/1     Running   0          52s
+frontend-5b4864c967-hjq6v   1/1     Running   0          52s
+
+
+
+
+frontend-deployment.yaml.  code as below. 
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: nginx:latest
+
+
+
+  
+  
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+serviceaccount/metrics-server created
+clusterrole.rbac.authorization.k8s.io/system:aggregated-metrics-reader created
+clusterrole.rbac.authorization.k8s.io/system:metrics-server created
+rolebinding.rbac.authorization.k8s.io/metrics-server-auth-reader created
+clusterrolebinding.rbac.authorization.k8s.io/metrics-server:system:auth-delegator created
+clusterrolebinding.rbac.authorization.k8s.io/system:metrics-server created
+service/metrics-server created
+deployment.apps/metrics-server created
+apiservice.apiregistration.k8s.io/v1beta1.metrics.k8s.io created
+
+
+while checking  reosuce usage getting error as below.  
+
+
+kubectl top pods --sort-by=cpu
+kubectl top pods --sort-by=memory
+
+
+ubuntu@ip-172-31-10-92:~$ kubectl top pods --sort-by=cpu
+Error from server (ServiceUnavailable): the server is currently unable to handle the request (get pods.metrics.k8s.io)
+ubuntu@ip-172-31-10-92:~$ kubectl top pods --sort-by=memory
+Error from server (ServiceUnavailable): the server is currently unable to handle the request (get pods.metrics.k8s.io)
+ubuntu@ip-172-31-10-92:~$ kubectl top nodes
+
+
+
+
+so edited yaml file  added code as below.
+
+included this line  - --kubelet-insecure-tls=true
+
+ spec:
+      containers:
+      - args:
+        - --cert-dir=/tmp
+        - --secure-port=4443
+        - --kubelet-insecure-tls=true
+
+
+
+ubuntu@ip-172-31-10-92:~$ cat components.yaml 
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+  name: system:aggregated-metrics-reader
+rules:
+- apiGroups:
+  - metrics.k8s.io
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  - nodes/stats
+  - namespaces
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server-auth-reader
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: extension-apiserver-authentication-reader
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server:system:auth-delegator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: system:metrics-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:metrics-server
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  ports:
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: https
+  selector:
+    k8s-app: metrics-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: metrics-server
+  namespace: kube-system
+spec:
+  selector:
+    matchLabels:
+      k8s-app: metrics-server
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        k8s-app: metrics-server
+    spec:
+      containers:
+      - args:
+        - --cert-dir=/tmp
+        - --secure-port=4443
+        - --kubelet-insecure-tls=true
+        - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+        - --kubelet-use-node-status-port
+        - --metric-resolution=15s
+        image: k8s.gcr.io/metrics-server/metrics-server:v0.5.2
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /livez
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+        name: metrics-server
+        ports:
+        - containerPort: 4443
+          name: https
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /readyz
+            port: https
+            scheme: HTTPS
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmp-dir
+      nodeSelector:
+        kubernetes.io/os: linux
+      priorityClassName: system-cluster-critical
+      serviceAccountName: metrics-server
+      volumes:
+      - emptyDir: {}
+        name: tmp-dir
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  labels:
+    k8s-app: metrics-server
+  name: v1beta1.metrics.k8s.io
+spec:
+  group: metrics.k8s.io
+  groupPriorityMinimum: 100
+  insecureSkipTLSVerify: true
+  service:
+    name: metrics-server
+    namespace: kube-system
+  version: v1beta1
+  versionPriority: 100
+
+ubuntu@ip-172-31-10-92:~$ 
+
+
+ spec:
+      containers:
+      - args:
+        - --cert-dir=/tmp
+        - --secure-port=4443
+        - --kubelet-insecure-tls=true
+
+
+
+ubuntu@ip-172-31-10-92:~$ kubectl top nodes
+NAME              CPU(cores)   CPU%   MEMORY(bytes)   MEMORY%   
+ip-172-31-10-92   92m          4%     1056Mi          13%       
+ip-172-31-15-69   26m          1%     518Mi           6%        
+ubuntu@ip-172-31-10-92:~$ 
+  
+  
+  
+  ubuntu@ip-172-31-10-92:~$ kubectl top pods --sort-by=cpu
+NAME                        CPU(cores)   MEMORY(bytes)   
+frontend-5b4864c967-5pnc6   0m           2Mi             
+frontend-5b4864c967-d2b4c   0m           8Mi             
+frontend-5b4864c967-hjq6v   0m           2Mi             
+ubuntu@ip-172-31-10-92:~$ kubectl top pods --sort-by=memory
+NAME                        CPU(cores)   MEMORY(bytes)   
+frontend-5b4864c967-d2b4c   0m           8Mi             
+frontend-5b4864c967-5pnc6   0m           2Mi             
+frontend-5b4864c967-hjq6v   0m           2Mi             
+ubuntu@ip-172-31-10-92:~$ 
+
+  
+  
+  
