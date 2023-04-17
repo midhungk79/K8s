@@ -1,0 +1,54 @@
+Create a ServiceAccount with the name "my-serviceaccount". Attach a Role to that service account. Give the necessary permission to list,watch & get for the resource 'pods'.
+With the help of "kubectl auth can-i command make sure the serviceaccount which you have created have the right permission
+
+
+ubuntu@ip-172-31-10-92:~$ vi my-serviceaccount.yaml
+ubuntu@ip-172-31-10-92:~$ vi my-serviceaccount.yaml
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f my-serviceaccount.yaml
+serviceaccount/my-serviceaccount created
+role.rbac.authorization.k8s.io/pod-reader configured
+rolebinding.rbac.authorization.k8s.io/read-pods created
+ubuntu@ip-172-31-10-92:~$ kubectl get sa my-serviceaccount
+NAME                SECRETS   AGE
+my-serviceaccount   0         14s
+ubuntu@ip-172-31-10-92:~$ kubectl get role pod-reader
+NAME         CREATED AT
+pod-reader   2023-04-17T10:58:07Z
+ubuntu@ip-172-31-10-92:~$ kubectl auth can-i get pods --as=system:serviceaccount:default:my-serviceaccount
+yes
+ubuntu@ip-172-31-10-92:~$ kubectl auth can-i list pods --as=system:serviceaccount:default:my-serviceaccount
+yes
+ubuntu@ip-172-31-10-92:~$ kubectl auth can-i watch pods --as=system:serviceaccount:default:my-serviceaccount
+yes
+ubuntu@ip-172-31-10-92:~$ 
+
+
+my-serviceaccount.yaml code
+
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: my-serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-pods
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+- kind: ServiceAccount
+  name: my-serviceaccount
+  namespace: default
