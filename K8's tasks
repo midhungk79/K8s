@@ -1,3 +1,7 @@
+
+Task 5
+=========================
+
 Create a ServiceAccount with the name "my-serviceaccount". Attach a Role to that service account. Give the necessary permission to list,watch & get for the resource 'pods'.
 With the help of "kubectl auth can-i command make sure the serviceaccount which you have created have the right permission
 
@@ -54,9 +58,12 @@ subjects:
   namespace: default
   
   
-  
+Task 6
+===========================
+
 Deploy a sample application with 3 replicas and label those with the selector flag as frontend. Enable the kubernetes metrics server on the kubernetes cluster.
 With the help of "kubernetes top" command list the pod resource usage. Sort the pods with the cpu and memory. Also list the node resource usage with top command
+
   
   ubuntu@ip-172-31-10-92:~$ vi frontend-deployment.yaml
 ubuntu@ip-172-31-10-92:~$ kubectl apply -f frontend-deployment.yaml
@@ -377,4 +384,108 @@ ubuntu@ip-172-31-10-92:~$
 
   
   
+Task 7
+============================
+
+Create a configMap with atleast 2 key-value pair, out of this one value should be Multi-line. Similarly create a 'secret' with the data to be passed as user and password as key value.Assign a base 64 value to those 2 keys. Pass this configuration data to inside a pod container at runtime as "ENV" variable. Make sure this passed configuration data can be accessed by the pod at run time
+
+
+
+ubuntu@ip-172-31-10-92:~$ cat configmap1.yaml 
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-configmap
+data:
+  key1: value1
+  key2: |
+    This is a
+    multi-line
+    value
+ubuntu@ip-172-31-10-92:~$ 
+
+
+
+
+    value
+ubuntu@ip-172-31-10-92:~$ cat secret1.yaml 
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+type: Opaque
+data:
+  username: dXNlcg==
+  password: cGFzc3dvcmQ=
+ubuntu@ip-172-31-10-92:~$ 
+
+
+
+ubuntu@ip-172-31-10-92:~$ cat pod1.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: my-container
+    image: nginx
+    env:
+    - name: KEY1
+      valueFrom:
+        configMapKeyRef:
+          name: my-configmap
+          key: key1
+    - name: KEY2
+      valueFrom:
+        configMapKeyRef:
+          name: my-configmap
+          key: key2
+    - name: USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: my-secret
+          key: username
+    - name: PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: my-secret
+          key: password
+ubuntu@ip-172-31-10-92:~$ 
+
+
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f configmap1.yaml 
+configmap/my-configmap unchanged
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f secret1.yaml 
+secret/my-secret unchanged
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f pod1.yaml 
+pod/my-pod created
+ubuntu@ip-172-31-10-92:~$ kubectl exec my-pod -- sh -c 'echo $KEY1'
+error: unable to upgrade connection: container not found ("my-container")
+ubuntu@ip-172-31-10-92:~$ kubectl delete pods,services,deployments --all^C
+ubuntu@ip-172-31-10-92:~$ kubectl get pods
+NAME     READY   STATUS         RESTARTS   AGE
+my-pod   0/1     ErrImagePull   0          42s
+ubuntu@ip-172-31-10-92:~$ vi pod1.yaml
+ubuntu@ip-172-31-10-92:~$ kubectl delete pods,services,deployments --all
+pod "my-pod" deleted
+service "kubernetes" deleted
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f pod1.yaml 
+pod/my-pod created
+ubuntu@ip-172-31-10-92:~$ kubectl get pods
+NAME     READY   STATUS    RESTARTS   AGE
+my-pod   1/1     Running   0          6s
+ubuntu@ip-172-31-10-92:~$ kubectl exec my-pod -- sh -c 'echo $KEY1'
+value1
+ubuntu@ip-172-31-10-92:~$ kubectl exec my-pod -- sh -c 'echo $KEY2'
+This is a multi-line value
+ubuntu@ip-172-31-10-92:~$ kubectl exec my-pod -- sh -c 'echo $USERNAME'
+user
+ubuntu@ip-172-31-10-92:~$ kubectl exec my-pod -- sh -c 'echo $PASSWORD'
+password
+
+
+
+
+
   
