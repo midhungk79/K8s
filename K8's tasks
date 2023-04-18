@@ -489,3 +489,58 @@ password
 
 
   
+  
+  
+  Task 8
+=================
+
+Pass the configuration data(ConfigMap and secret created on task 8) towards the container as a Configuration Volume. Make sure mouted path on the container have this config data,so that the container can access those values at runtime.
+
+  
+  
+  
+  
+  ubuntu@ip-172-31-10-92:~$ > pod1.yaml 
+ubuntu@ip-172-31-10-92:~$ vi pod1.yaml 
+ubuntu@ip-172-31-10-92:~$ vi pod1.yaml 
+ubuntu@ip-172-31-10-92:~$ kubectl apply -f pod1.yaml 
+pod/my-pod created
+ubuntu@ip-172-31-10-92:~$ kubectl exec -it my-pod -- /bin/bash
+root@my-pod:/# cd /etc/config
+root@my-pod:/etc/config# ls 
+key1  key2
+root@my-pod:/etc/config# cat key1
+value1root@my-pod:/etc/config# cat key2
+This is a multi-line
+value for key2
+root@my-pod:/etc/config# ls -la
+total 16
+drwxrwxrwx 3 root root 4096 Apr 18 06:13 .
+drwxr-xr-x 1 root root 4096 Apr 18 06:13 ..
+drwxr-xr-x 2 root root 4096 Apr 18 06:13 ..2023_04_18_06_13_27.1162358764
+lrwxrwxrwx 1 root root   32 Apr 18 06:13 ..data -> ..2023_04_18_06_13_27.1162358764
+lrwxrwxrwx 1 root root   11 Apr 18 06:13 key1 -> ..data/key1
+lrwxrwxrwx 1 root root   11 Apr 18 06:13 key2 -> ..data/key2
+root@my-pod:/etc/config# 
+
+ubuntu@ip-172-31-10-92:~$ cat pod1.yaml 
+apiVersion: v1
+kind: Pod
+metadata:
+  name: my-pod
+spec:
+  containers:
+  - name: my-container
+    image: nginx
+    volumeMounts:
+    - name: config-volume
+      mountPath: /etc/config
+  volumes:
+  - name: config-volume
+    configMap:
+      name: my-config-map
+  - name: secret-volume
+    secret:
+      secretName: my-secret
+ubuntu@ip-172-31-10-92:~$ 
+
