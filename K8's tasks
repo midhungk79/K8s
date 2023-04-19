@@ -659,7 +659,9 @@ ubuntu@ip-172-31-0-85:~$ kubectl auth can-i logs pods
 Warning: verb 'logs' is not a known verb
 yes
 ubuntu@ip-172-31-0-85:~$ 
-
+ubuntu@ip-172-31-0-85:~$ kubectl auth can-i watch pods
+yes
+ubuntu@ip-172-31-0-85:~$ 
 
 
 
