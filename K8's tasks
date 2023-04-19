@@ -544,3 +544,133 @@ spec:
       secretName: my-secret
 ubuntu@ip-172-31-10-92:~$ 
 
+
+
+Task 4 
+=====================================================
+
+Create a user with the name 'developer'. Attach a Role and bind the Role to the 'developer' user. In the 'Role' give the necessary permission to list,watch
+& logs for the resource 'pods'. Changing the context to developer user, make sure the user have the assigned permission and its working too.
+
+
+
+ubuntu@ip-172-31-0-85:~$ cat developer.yaml 
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: developer
+
+---
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: developer
+  namespace: developer
+
+---
+
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: developer
+  name: pod-reader
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list", "watch", "get", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["list", "watch", "get", "create", "update", "patch", "delete"]
+
+---
+
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: read-pods
+  namespace: developer
+subjects:
+- kind: ServiceAccount
+  name: developer
+  namespace: developer
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+ubuntu@ip-172-31-0-85:~$ 
+
+
+in between got error for some reason kubectl command not worked , getting error as below. 
+
+i was getting error when i set context.  so tried to delete all the created pods.  
+
+
+ubuntu@ip-172-31-0-85:~$ kubectl delete pods,services,deployments --all
+The connection to the server localhost:8080 was refused - did you specify the right host or port?
+
+so to fix this. i used the below commands.  (it was due to the .kube folder was deleted automatically)
+
+ubuntu@ip-172-31-0-85:~$ mkdir -p $HOME/.kube
+ubuntu@ip-172-31-0-85:~$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+cp: overwrite '/home/ubuntu/.kube/config'? yes
+ubuntu@ip-172-31-0-85:~$ sudo chown $(id -u):$(id -g) $HOME/.kube/config
+ubuntu@ip-172-31-0-85:~$ kubectl delete pods,services,deployments --all
+service "kubernetes" deleted
+
+then i have run again the same dveveloper.yaml. 
+
+
+ubuntu@ip-172-31-0-85:~$ kubectl apply -f developer.yaml 
+namespace/developer unchanged
+serviceaccount/developer unchanged
+role.rbac.authorization.k8s.io/pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/read-pods unchanged
+
+ubuntu@ip-172-31-0-85:~$ kubectl config set-credentials developer --token=abc123
+User "developer" set.
+
+ubuntu@ip-172-31-0-85:~$ kubectl config set-context --current --user=developer --namespace=developer
+Context "kubernetes-admin@kubernetes" modified.
+
+while checking the permiison of the user whetehr he has permiison to watch and view pods. if he has permiision it will prompt yes.  but while cheking it i got error as below. 
+
+
+
+ubuntu@ip-172-31-0-85:~$ kubectl auth can-i list pods
+error: You must be logged in to the server (Unauthorized)
+
+ubuntu@ip-172-31-0-85:~$ cp /etc/kubernetes/admin.conf $HOME/.kube/config
+cp: cannot open '/etc/kubernetes/admin.conf' for reading: Permission denied
+
+so i used below command to get rid of from this.  
+
+ubuntu@ip-172-31-0-85:~$ sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+
+
+now its shows yes. 
+
+ubuntu@ip-172-31-0-85:~$ kubectl auth can-i list pods
+yes
+
+ubuntu@ip-172-31-0-85:~$ kubectl auth can-i list pods
+yes
+ubuntu@ip-172-31-0-85:~$ kubectl auth can-i logs pods
+Warning: verb 'logs' is not a known verb
+yes
+ubuntu@ip-172-31-0-85:~$ 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
